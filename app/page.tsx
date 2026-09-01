@@ -32,6 +32,7 @@ export default function Home() {
   const [volume, setVolume] = useState(70)
   const [isPlaying, setIsPlaying] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [buffering, setBuffering] = useState(false)
 
   useEffect(() => {
     window.onYouTubeIframeAPIReady = () => {
@@ -58,6 +59,7 @@ export default function Home() {
       playerRef.current.loadVideoById(videoId)
       setLoaded(true)
       setIsPlaying(false)
+      setBuffering(true)
       return
     }
 
@@ -68,9 +70,12 @@ export default function Home() {
         onReady: (e: YT.PlayerEvent) => {
           e.target.setVolume(volume)
           setLoaded(true)
+          setBuffering(true)
         },
         onStateChange: (e: YT.OnStateChangeEvent) => {
-          setIsPlaying(e.data === window.YT.PlayerState.PLAYING)
+          const playing = e.data === window.YT.PlayerState.PLAYING
+          setIsPlaying(playing)
+          if (playing) setBuffering(false)
         },
       },
     })
@@ -112,8 +117,8 @@ export default function Home() {
       {/* 영상 영역 */}
       <div className="relative flex-1 bg-black min-h-0">
         <div id="yt-player" className="app-no-drag w-full h-full" />
-        {/* OSD 차단 오버레이: iframe 위를 덮어 마우스 이벤트를 가로챔 */}
-        <div className="absolute inset-0" />
+        {/* 마우스 OSD 차단 + 영상 시작 초기 OSD 차단 */}
+        <div className={`absolute inset-0 ${buffering ? 'bg-black' : ''}`} />
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
