@@ -30,6 +30,7 @@ export default function Home() {
   const apiReadyRef = useRef(false)
   const pendingVideoIdRef = useRef<string | null>(null)
   const currentVideoIdRef = useRef<string | null>(null)
+  const resumePositionRef = useRef<number>(0)
 
   const [url, setUrl] = useState('')
   const [volume, setVolume] = useState(70)
@@ -39,13 +40,24 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
 
+  // 히스토리 + 마지막 재생 위치 복원
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('yt-history') || '[]')
       setHistory(saved)
     } catch {}
+
+    try {
+      const last = JSON.parse(localStorage.getItem('yt-last-played') || 'null')
+      if (last?.videoId && last?.position > 0) {
+        setUrl(`https://youtu.be/${last.videoId}`)
+        resumePositionRef.current = last.position
+        pendingVideoIdRef.current = last.videoId
+      }
+    } catch {}
   }, [])
 
+  // YouTube IFrame API 로드
   useEffect(() => {
     window.onYouTubeIframeAPIReady = () => {
       apiReadyRef.current = true
@@ -66,6 +78,26 @@ export default function Home() {
     document.head.appendChild(tag)
   }, [])
 
+  // 재생 중 5초마다 위치 저장
+  useEffect(() => {
+    if (!isPlaying) return
+    const id = setInterval(savePosition, 5000)
+    return () => clearInterval(id)
+  }, [isPlaying])
+
+  function savePosition() {
+    const vid = currentVideoIdRef.current
+    const pos = playerRef.current?.getCurrentTime()
+    if (vid && pos !== undefined && pos > 0) {
+      try {
+        localStorage.setItem(
+          'yt-last-played',
+          JSON.stringify({ videoId: vid, position: Math.floor(pos) })
+        )
+      } catch {}
+    }
+  }
+
   function addToHistory(videoId: string, title: string) {
     setHistory(prev => {
       const filtered = prev.filter(h => h.videoId !== videoId)
@@ -77,9 +109,11 @@ export default function Home() {
 
   function initPlayer(videoId: string) {
     currentVideoIdRef.current = videoId
+    const seekTo = resumePositionRef.current
+    resumePositionRef.current = 0
 
     if (playerRef.current) {
-      playerRef.current.loadVideoById(videoId)
+      playerRef.current.loadVideoById(videoId, seekTo)
       setLoaded(true)
       setIsPlaying(false)
       setBuffering(true)
@@ -96,18 +130,22 @@ export default function Home() {
           e.target.setVolume(volume)
           setLoaded(true)
           setBuffering(true)
+          if (seekTo > 0) e.target.seekTo(seekTo, true)
         },
         onStateChange: (e: YT.OnStateChangeEvent) => {
-          const playing = e.data === window.YT.PlayerState.PLAYING
+          const state = e.data
+          const playing = state === window.YT.PlayerState.PLAYING
           setIsPlaying(playing)
+
           if (playing) {
             setTimeout(() => setBuffering(false), 1500)
-            // PLAYING 시점에 타이틀 확보 → 히스토리 저장
             const vid = currentVideoIdRef.current
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const data = (playerRef.current as any)?.getVideoData?.()
             if (vid && data?.title) addToHistory(vid, data.title)
           }
+
+          if (state === window.YT.PlayerState.PAUSED) savePosition()
         },
       },
     })
@@ -116,7 +154,7 @@ export default function Home() {
   function handleLoad() {
     const videoId = extractVideoId(url)
     if (!videoId) return
-
+    resumePositionRef.current = 0  // 수동 로드 시 처음부터
     if (apiReadyRef.current) {
       initPlayer(videoId)
     } else {
@@ -135,6 +173,7 @@ export default function Home() {
 
   function handleStop() {
     if (!playerRef.current) return
+    savePosition()
     playerRef.current.stopVideo()
     setIsPlaying(false)
   }
@@ -147,6 +186,7 @@ export default function Home() {
   function loadFromHistory(item: HistoryItem) {
     setUrl(`https://youtu.be/${item.videoId}`)
     setShowHistory(false)
+    resumePositionRef.current = 0  // 히스토리에서 로드 시 처음부터
     if (apiReadyRef.current) {
       initPlayer(item.videoId)
     } else {
