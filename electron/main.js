@@ -2,6 +2,8 @@ const { app, BrowserWindow, screen } = require('electron')
 
 app.commandLine.appendSwitch('ignore-certificate-errors')
 app.commandLine.appendSwitch('ozone-platform', 'x11')
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('disable-software-rasterizer', 'false')
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
