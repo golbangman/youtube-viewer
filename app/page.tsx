@@ -50,7 +50,6 @@ export default function Home() {
     try {
       const last = JSON.parse(localStorage.getItem('yt-last-played') || 'null')
       if (last?.videoId && last?.position > 0) {
-        setUrl(`https://youtu.be/${last.videoId}`)
         resumePositionRef.current = last.position
         pendingVideoIdRef.current = last.videoId
       }
@@ -248,6 +247,7 @@ export default function Home() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
+          onFocus={(e) => e.target.select()}
           placeholder="YouTube URL 입력 후 Enter"
           className="app-no-drag w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
         />
