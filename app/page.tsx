@@ -109,9 +109,11 @@ export default function Home() {
 
   return (
     <div className="app-drag flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
-      {/* 영상 영역 — iframe 자체는 드래그 불가, 나머지 영역으로 이동 */}
+      {/* 영상 영역 */}
       <div className="relative flex-1 bg-black min-h-0">
         <div id="yt-player" className="app-no-drag w-full h-full" />
+        {/* OSD 차단 오버레이: iframe 위를 덮어 마우스 이벤트를 가로챔 */}
+        <div className="absolute inset-0" />
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>

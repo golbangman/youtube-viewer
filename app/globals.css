@@ -5,8 +5,6 @@
 .app-drag    { -webkit-app-region: drag; }
 .app-no-drag { -webkit-app-region: no-drag; }
 
-/* YouTube OSD(호버 UI) 차단 */
-#yt-player iframe { pointer-events: none; }
 
 @custom-variant dark (&:is(.dark *));
 
