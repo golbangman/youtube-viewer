@@ -108,10 +108,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
-      {/* 영상 영역 */}
+    <div className="app-drag flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
+      {/* 영상 영역 — iframe 자체는 드래그 불가, 나머지 영역으로 이동 */}
       <div className="relative flex-1 bg-black min-h-0">
-        <div id="yt-player" className="w-full h-full" />
+        <div id="yt-player" className="app-no-drag w-full h-full" />
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
@@ -127,7 +127,7 @@ export default function Home() {
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
           placeholder="YouTube URL 입력 후 Enter"
-          className="w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+          className="app-no-drag w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
         />
       </div>
 
@@ -135,7 +135,7 @@ export default function Home() {
       <div className="flex items-center gap-2 px-2 py-2">
         <button
           onClick={handlePlayPause}
-          className="text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
+          className="app-no-drag text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
           aria-label={isPlaying ? '정지' : '재생'}
         >
           {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -143,7 +143,7 @@ export default function Home() {
 
         <button
           onClick={handleStop}
-          className="text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
+          className="app-no-drag text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
           aria-label="스탑"
         >
           <Square size={16} />
@@ -157,7 +157,7 @@ export default function Home() {
           max={100}
           value={volume}
           onChange={(e) => handleVolume(Number(e.target.value))}
-          className="flex-1 accent-red-600 h-1 cursor-pointer"
+          className="app-no-drag flex-1 accent-red-600 h-1 cursor-pointer"
           aria-label="볼륨"
         />
       </div>
