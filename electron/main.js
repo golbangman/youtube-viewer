@@ -66,6 +66,17 @@ async function createWindow(port) {
 
   const url = IS_DEV ? 'http://localhost:3000' : `http://127.0.0.1:${port}`
   win.loadURL(url)
+
+  // YouTube embed iframe에 CSS 주입 → OSD 요소 완전 제거
+  win.webContents.on('frame-created', (_event, details) => {
+    details.frame.on('dom-ready', () => {
+      if (details.frame.url.includes('youtube.com/embed')) {
+        details.frame.insertCSS(
+          '.ytp-chrome-top,.ytp-pause-overlay,.ytp-gradient-top,.ytp-gradient-bottom,.ytp-bezel{display:none!important}'
+        )
+      }
+    })
+  })
 }
 
 app.whenReady().then(async () => {
