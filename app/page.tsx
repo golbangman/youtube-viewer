@@ -1,69 +1,166 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Pause, Play, Square, Volume2 } from 'lucide-react'
+
+declare global {
+  interface Window {
+    YT: typeof YT
+    onYouTubeIframeAPIReady: () => void
+  }
+}
+
+function extractVideoId(url: string): string | null {
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /embed\/([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const p of patterns) {
+    const m = url.match(p)
+    if (m) return m[1]
+  }
+  return null
+}
 
 export default function Home() {
+  const playerRef = useRef<YT.Player | null>(null)
+  const apiReadyRef = useRef(false)
+  const pendingVideoIdRef = useRef<string | null>(null)
+
+  const [url, setUrl] = useState('')
+  const [volume, setVolume] = useState(70)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    window.onYouTubeIframeAPIReady = () => {
+      apiReadyRef.current = true
+      if (pendingVideoIdRef.current) {
+        initPlayer(pendingVideoIdRef.current)
+        pendingVideoIdRef.current = null
+      }
+    }
+
+    if (document.getElementById('yt-api-script')) {
+      if (window.YT?.Player) window.onYouTubeIframeAPIReady()
+      return
+    }
+
+    const tag = document.createElement('script')
+    tag.id = 'yt-api-script'
+    tag.src = 'https://www.youtube.com/iframe_api'
+    document.head.appendChild(tag)
+  }, [])
+
+  function initPlayer(videoId: string) {
+    if (playerRef.current) {
+      playerRef.current.loadVideoById(videoId)
+      setLoaded(true)
+      setIsPlaying(false)
+      return
+    }
+
+    playerRef.current = new window.YT.Player('yt-player', {
+      videoId,
+      playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
+      events: {
+        onReady: (e: YT.PlayerEvent) => {
+          e.target.setVolume(volume)
+          setLoaded(true)
+        },
+        onStateChange: (e: YT.OnStateChangeEvent) => {
+          setIsPlaying(e.data === window.YT.PlayerState.PLAYING)
+        },
+      },
+    })
+  }
+
+  function handleLoad() {
+    const videoId = extractVideoId(url)
+    if (!videoId) return
+
+    if (apiReadyRef.current) {
+      initPlayer(videoId)
+    } else {
+      pendingVideoIdRef.current = videoId
+    }
+  }
+
+  function handlePlayPause() {
+    if (!playerRef.current) return
+    if (isPlaying) {
+      playerRef.current.pauseVideo()
+    } else {
+      playerRef.current.playVideo()
+    }
+  }
+
+  function handleStop() {
+    if (!playerRef.current) return
+    playerRef.current.stopVideo()
+    setIsPlaying(false)
+  }
+
+  function handleVolume(v: number) {
+    setVolume(v)
+    playerRef.current?.setVolume(v)
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
+      {/* 영상 영역 */}
+      <div className="relative flex-1 bg-black min-h-0">
+        <div id="yt-player" className="w-full h-full" />
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
+          </div>
+        )}
+      </div>
+
+      {/* URL 입력 */}
+      <div className="px-2 pt-2">
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
+          placeholder="YouTube URL 입력 후 Enter"
+          className="w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* 컨트롤 */}
+      <div className="flex items-center gap-2 px-2 py-2">
+        <button
+          onClick={handlePlayPause}
+          className="text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
+          aria-label={isPlaying ? '정지' : '재생'}
+        >
+          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+        </button>
+
+        <button
+          onClick={handleStop}
+          className="text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
+          aria-label="스탑"
+        >
+          <Square size={16} />
+        </button>
+
+        <Volume2 size={14} className="text-zinc-600 shrink-0" />
+
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          onChange={(e) => handleVolume(Number(e.target.value))}
+          className="flex-1 accent-red-600 h-1 cursor-pointer"
+          aria-label="볼륨"
+        />
+      </div>
     </div>
-  );
+  )
 }
