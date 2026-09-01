@@ -40,8 +40,8 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [playerError, setPlayerError] = useState(false)
+  const [isHovering, setIsHovering] = useState(false)
 
-  // 히스토리 + 마지막 재생 위치 복원
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('yt-history') || '[]')
@@ -57,7 +57,6 @@ export default function Home() {
     } catch {}
   }, [])
 
-  // YouTube IFrame API 로드
   useEffect(() => {
     window.onYouTubeIframeAPIReady = () => {
       apiReadyRef.current = true
@@ -78,7 +77,6 @@ export default function Home() {
     document.head.appendChild(tag)
   }, [])
 
-  // 재생 중 5초마다 위치 저장
   useEffect(() => {
     if (!isPlaying) return
     const id = setInterval(savePosition, 5000)
@@ -113,7 +111,11 @@ export default function Home() {
     resumePositionRef.current = 0
 
     if (playerRef.current) {
-      playerRef.current.loadVideoById(videoId, seekTo)
+      if (seekTo > 0) {
+        playerRef.current.loadVideoById(videoId, seekTo)
+      } else {
+        playerRef.current.loadVideoById(videoId)
+      }
       setLoaded(true)
       setIsPlaying(false)
       setBuffering(true)
@@ -194,7 +196,7 @@ export default function Home() {
   function loadFromHistory(item: HistoryItem) {
     setUrl(`https://youtu.be/${item.videoId}`)
     setShowHistory(false)
-    resumePositionRef.current = 0  // 히스토리에서 로드 시 처음부터
+    resumePositionRef.current = 0
     if (apiReadyRef.current) {
       initPlayer(item.videoId)
     } else {
@@ -202,109 +204,117 @@ export default function Home() {
     }
   }
 
-  return (
-    <div className="app-drag flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
-      {/* 영상 영역 */}
-      <div className="relative flex-1 bg-black min-h-0">
-        <div id="yt-player" className="app-no-drag absolute inset-0" />
-        <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
-        {!loaded && !playerError && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-            <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
-          </div>
-        )}
-        {playerError && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-            <span className="text-red-500 text-xs">재생 불가 (임베드 제한 또는 오류)</span>
-          </div>
-        )}
+  const showControls = !isPlaying || isHovering
 
-        {/* 시청 기록 패널 */}
-        {showHistory && (
-          <div className="absolute inset-0 z-30 bg-zinc-900 flex flex-col">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
-              <span className="text-xs font-medium text-zinc-400">최근 시청</span>
+  return (
+    <div
+      className="app-drag relative h-screen overflow-hidden bg-zinc-950 text-zinc-100 select-none"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {/* 영상 */}
+      <div id="yt-player" className="app-no-drag absolute inset-0" />
+      <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
+
+      {/* 플레이스홀더 / 에러 */}
+      {!loaded && !playerError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
+        </div>
+      )}
+      {playerError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <span className="text-red-500 text-xs">재생 불가 (임베드 제한 또는 오류)</span>
+        </div>
+      )}
+
+      {/* 시청 기록 패널 */}
+      {showHistory && (
+        <div className="absolute inset-0 z-30 bg-zinc-900 flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
+            <span className="text-xs font-medium text-zinc-400">최근 시청</span>
+            <button
+              onClick={() => setShowHistory(false)}
+              className="app-no-drag text-zinc-500 hover:text-zinc-200 transition-colors"
+              aria-label="닫기"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto app-no-drag">
+            {history.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <span className="text-zinc-600 text-xs">기록 없음</span>
+              </div>
+            ) : (
+              history.map((item, i) => (
+                <button
+                  key={item.videoId}
+                  onClick={() => loadFromHistory(item)}
+                  className="app-no-drag w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors flex items-start gap-2"
+                >
+                  <span className="text-zinc-600 text-xs shrink-0 w-4 mt-0.5">{i + 1}.</span>
+                  <span className="text-zinc-300 text-xs line-clamp-2 leading-tight">{item.title}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* URL + 컨트롤 오버레이 */}
+      {!showHistory && (
+        <div
+          className={`absolute bottom-0 inset-x-0 z-40 transition-opacity duration-200 ${
+            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <div className="bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-8 px-2 pb-2 space-y-1.5">
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
+              onFocus={(e) => e.target.select()}
+              placeholder="YouTube URL 입력 후 Enter"
+              className="app-no-drag w-full bg-zinc-800/80 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+            />
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowHistory(false)}
-                className="app-no-drag text-zinc-500 hover:text-zinc-200 transition-colors"
-                aria-label="닫기"
+                onClick={handlePlayPause}
+                className="app-no-drag text-zinc-300 hover:text-white transition-colors shrink-0"
+                aria-label={isPlaying ? '정지' : '재생'}
               >
-                <X size={13} />
+                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+              </button>
+              <button
+                onClick={handleStop}
+                className="app-no-drag text-zinc-300 hover:text-white transition-colors shrink-0"
+                aria-label="스탑"
+              >
+                <Square size={16} />
+              </button>
+              <Volume2 size={14} className="text-zinc-500 shrink-0" />
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                onChange={(e) => handleVolume(Number(e.target.value))}
+                className="app-no-drag flex-1 accent-red-600 h-1 cursor-pointer"
+                aria-label="볼륨"
+              />
+              <button
+                onClick={() => setShowHistory(h => !h)}
+                className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
+                aria-label="시청 기록"
+              >
+                <Clock size={14} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto app-no-drag">
-              {history.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <span className="text-zinc-600 text-xs">기록 없음</span>
-                </div>
-              ) : (
-                history.map((item, i) => (
-                  <button
-                    key={item.videoId}
-                    onClick={() => loadFromHistory(item)}
-                    className="app-no-drag w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors flex items-start gap-2"
-                  >
-                    <span className="text-zinc-600 text-xs shrink-0 w-4 mt-0.5">{i + 1}.</span>
-                    <span className="text-zinc-300 text-xs line-clamp-2 leading-tight">{item.title}</span>
-                  </button>
-                ))
-              )}
-            </div>
           </div>
-        )}
-      </div>
-
-      {/* URL 입력 */}
-      <div className="px-2 pt-2">
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
-          onFocus={(e) => e.target.select()}
-          placeholder="YouTube URL 입력 후 Enter"
-          className="app-no-drag w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-        />
-      </div>
-
-      {/* 컨트롤 */}
-      <div className="flex items-center gap-2 px-2 py-2">
-        <button
-          onClick={handlePlayPause}
-          className="app-no-drag text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
-          aria-label={isPlaying ? '정지' : '재생'}
-        >
-          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-        </button>
-
-        <button
-          onClick={handleStop}
-          className="app-no-drag text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
-          aria-label="스탑"
-        >
-          <Square size={16} />
-        </button>
-
-        <Volume2 size={14} className="text-zinc-600 shrink-0" />
-
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={volume}
-          onChange={(e) => handleVolume(Number(e.target.value))}
-          className="app-no-drag flex-1 accent-red-600 h-1 cursor-pointer"
-          aria-label="볼륨"
-        />
-
-        <button
-          onClick={() => setShowHistory(h => !h)}
-          className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-100'}`}
-          aria-label="시청 기록"
-        >
-          <Clock size={14} />
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
