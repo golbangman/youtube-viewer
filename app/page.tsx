@@ -78,6 +78,12 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (!playerError) return
+    const id = setTimeout(() => setPlayerError(false), 3000)
+    return () => clearTimeout(id)
+  }, [playerError])
+
+  useEffect(() => {
     if (!isPlaying) return
     const id = setInterval(savePosition, 5000)
     return () => clearInterval(id)
@@ -126,7 +132,7 @@ export default function Home() {
       videoId,
       width: '100%',
       height: '100%',
-      playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
+      playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, origin: 'https://www.youtube.com' },
       events: {
         onReady: (e: YT.PlayerEvent) => {
           e.target.setVolume(volume)
@@ -150,10 +156,14 @@ export default function Home() {
 
           if (state === window.YT.PlayerState.PAUSED) savePosition()
         },
-        onError: () => {
-          setPlayerError(true)
+        onError: (e: YT.OnErrorEvent) => {
           setBuffering(false)
           setLoaded(false)
+          setPlayerError(true)
+          // 확정적 실패(임베드 불가·없는 영상)는 저장된 재개 위치도 초기화
+          if ([100, 101, 150].includes(e.data)) {
+            try { localStorage.removeItem('yt-last-played') } catch {}
+          }
         },
       },
     })
