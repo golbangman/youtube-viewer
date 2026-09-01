@@ -9,6 +9,7 @@ const WIN_WIDTH = 400
 const WIN_HEIGHT = 330
 const IS_DEV = process.env.NEXT_DEV === '1'
 const OUT_DIR = path.join(__dirname, '..', 'out')
+const FILE_SERVER_PORT = 47473
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -42,7 +43,7 @@ function startFileServer() {
       fs.createReadStream(filePath).pipe(res)
     })
 
-    server.listen(0, '127.0.0.1', () => resolve(server.address().port))
+    server.listen(FILE_SERVER_PORT, '127.0.0.1', () => resolve(server.address().port))
   })
 }
 
