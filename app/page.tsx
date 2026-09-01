@@ -116,11 +116,11 @@ export default function Home() {
     <div className="app-drag flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
       {/* 영상 영역 */}
       <div className="relative flex-1 bg-black min-h-0">
-        <div id="yt-player" className="app-no-drag w-full h-full" />
-        {/* 마우스 OSD 차단 + 영상 시작 초기 OSD 차단 */}
-        <div className={`absolute inset-0 ${buffering ? 'bg-black' : ''}`} />
+        <div id="yt-player" className="app-no-drag absolute inset-0" />
+        {/* z-10: iframe 위에 강제로 올려 OSD 차단 */}
+        <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
         {!loaded && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
           </div>
         )}
