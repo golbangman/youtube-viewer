@@ -1,6 +1,7 @@
 const { app, BrowserWindow, screen } = require('electron')
 
 app.commandLine.appendSwitch('ignore-certificate-errors')
+app.commandLine.appendSwitch('ozone-platform', 'x11')
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
@@ -70,11 +71,13 @@ async function createWindow(port) {
   // YouTube embed iframe에 CSS 주입 → OSD 요소 완전 제거
   win.webContents.on('frame-created', (_event, details) => {
     details.frame.on('dom-ready', () => {
-      if (details.frame.url.includes('youtube.com/embed')) {
-        details.frame.insertCSS(
-          '.ytp-chrome-top,.ytp-pause-overlay,.ytp-gradient-top,.ytp-gradient-bottom,.ytp-bezel{display:none!important}'
-        )
-      }
+      try {
+        if (details.frame.url.includes('youtube.com/embed')) {
+          details.frame.insertCSS(
+            '.ytp-chrome-top,.ytp-pause-overlay,.ytp-gradient-top,.ytp-gradient-bottom,.ytp-bezel{display:none!important}'
+          )
+        }
+      } catch (_) {}
     })
   })
 }
