@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pause, Play, Square, Volume2 } from 'lucide-react'
+import { Clock, Pause, Play, Square, Volume2, X } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -23,16 +23,28 @@ function extractVideoId(url: string): string | null {
   return null
 }
 
+type HistoryItem = { videoId: string; title: string }
+
 export default function Home() {
   const playerRef = useRef<YT.Player | null>(null)
   const apiReadyRef = useRef(false)
   const pendingVideoIdRef = useRef<string | null>(null)
+  const currentVideoIdRef = useRef<string | null>(null)
 
   const [url, setUrl] = useState('')
   const [volume, setVolume] = useState(70)
   const [isPlaying, setIsPlaying] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [buffering, setBuffering] = useState(false)
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('yt-history') || '[]')
+      setHistory(saved)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     window.onYouTubeIframeAPIReady = () => {
@@ -54,7 +66,18 @@ export default function Home() {
     document.head.appendChild(tag)
   }, [])
 
+  function addToHistory(videoId: string, title: string) {
+    setHistory(prev => {
+      const filtered = prev.filter(h => h.videoId !== videoId)
+      const next = [{ videoId, title }, ...filtered].slice(0, 10)
+      try { localStorage.setItem('yt-history', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+
   function initPlayer(videoId: string) {
+    currentVideoIdRef.current = videoId
+
     if (playerRef.current) {
       playerRef.current.loadVideoById(videoId)
       setLoaded(true)
@@ -77,7 +100,14 @@ export default function Home() {
         onStateChange: (e: YT.OnStateChangeEvent) => {
           const playing = e.data === window.YT.PlayerState.PLAYING
           setIsPlaying(playing)
-          if (playing) setTimeout(() => setBuffering(false), 1500)
+          if (playing) {
+            setTimeout(() => setBuffering(false), 1500)
+            // PLAYING 시점에 타이틀 확보 → 히스토리 저장
+            const vid = currentVideoIdRef.current
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const data = (playerRef.current as any)?.getVideoData?.()
+            if (vid && data?.title) addToHistory(vid, data.title)
+          }
         },
       },
     })
@@ -114,16 +144,59 @@ export default function Home() {
     playerRef.current?.setVolume(v)
   }
 
+  function loadFromHistory(item: HistoryItem) {
+    setUrl(`https://youtu.be/${item.videoId}`)
+    setShowHistory(false)
+    if (apiReadyRef.current) {
+      initPlayer(item.videoId)
+    } else {
+      pendingVideoIdRef.current = item.videoId
+    }
+  }
+
   return (
     <div className="app-drag flex flex-col h-screen bg-zinc-950 text-zinc-100 select-none overflow-hidden">
       {/* 영상 영역 */}
       <div className="relative flex-1 bg-black min-h-0">
         <div id="yt-player" className="app-no-drag absolute inset-0" />
-        {/* z-10: iframe 위에 강제로 올려 OSD 차단 */}
         <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
         {!loaded && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
+          </div>
+        )}
+
+        {/* 시청 기록 패널 */}
+        {showHistory && (
+          <div className="absolute inset-0 z-30 bg-zinc-900 flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
+              <span className="text-xs font-medium text-zinc-400">최근 시청</span>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="app-no-drag text-zinc-500 hover:text-zinc-200 transition-colors"
+                aria-label="닫기"
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto app-no-drag">
+              {history.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <span className="text-zinc-600 text-xs">기록 없음</span>
+                </div>
+              ) : (
+                history.map((item, i) => (
+                  <button
+                    key={item.videoId}
+                    onClick={() => loadFromHistory(item)}
+                    className="app-no-drag w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors flex items-start gap-2"
+                  >
+                    <span className="text-zinc-600 text-xs shrink-0 w-4 mt-0.5">{i + 1}.</span>
+                    <span className="text-zinc-300 text-xs line-clamp-2 leading-tight">{item.title}</span>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -169,6 +242,14 @@ export default function Home() {
           className="app-no-drag flex-1 accent-red-600 h-1 cursor-pointer"
           aria-label="볼륨"
         />
+
+        <button
+          onClick={() => setShowHistory(h => !h)}
+          className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-100'}`}
+          aria-label="시청 기록"
+        >
+          <Clock size={14} />
+        </button>
       </div>
     </div>
   )
