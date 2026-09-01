@@ -39,6 +39,7 @@ export default function Home() {
   const [buffering, setBuffering] = useState(false)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const [playerError, setPlayerError] = useState(false)
 
   // 히스토리 + 마지막 재생 위치 복원
   useEffect(() => {
@@ -137,6 +138,7 @@ export default function Home() {
           setIsPlaying(playing)
 
           if (playing) {
+            setPlayerError(false)
             setTimeout(() => setBuffering(false), 1500)
             const vid = currentVideoIdRef.current
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,6 +148,11 @@ export default function Home() {
 
           if (state === window.YT.PlayerState.PAUSED) savePosition()
         },
+        onError: () => {
+          setPlayerError(true)
+          setBuffering(false)
+          setLoaded(false)
+        },
       },
     })
   }
@@ -153,7 +160,9 @@ export default function Home() {
   function handleLoad() {
     const videoId = extractVideoId(url)
     if (!videoId) return
-    resumePositionRef.current = 0  // 수동 로드 시 처음부터
+    setShowHistory(false)
+    setPlayerError(false)
+    resumePositionRef.current = 0
     if (apiReadyRef.current) {
       initPlayer(videoId)
     } else {
@@ -199,9 +208,14 @@ export default function Home() {
       <div className="relative flex-1 bg-black min-h-0">
         <div id="yt-player" className="app-no-drag absolute inset-0" />
         <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
-        {!loaded && (
+        {!loaded && !playerError && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
             <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
+          </div>
+        )}
+        {playerError && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <span className="text-red-500 text-xs">재생 불가 (임베드 제한 또는 오류)</span>
           </div>
         )}
 
