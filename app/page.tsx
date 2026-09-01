@@ -65,6 +65,8 @@ export default function Home() {
 
     playerRef.current = new window.YT.Player('yt-player', {
       videoId,
+      width: '100%',
+      height: '100%',
       playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
       events: {
         onReady: (e: YT.PlayerEvent) => {

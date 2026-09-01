@@ -5,6 +5,14 @@
 .app-drag    { -webkit-app-region: drag; }
 .app-no-drag { -webkit-app-region: no-drag; }
 
+/* YouTube API가 div를 iframe으로 교체해도 컨테이너를 꽉 채우도록 */
+#yt-player {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 
 @custom-variant dark (&:is(.dark *));
 
