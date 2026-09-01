@@ -75,7 +75,7 @@ export default function Home() {
         onStateChange: (e: YT.OnStateChangeEvent) => {
           const playing = e.data === window.YT.PlayerState.PLAYING
           setIsPlaying(playing)
-          if (playing) setBuffering(false)
+          if (playing) setTimeout(() => setBuffering(false), 1500)
         },
       },
     })
