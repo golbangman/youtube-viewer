@@ -43,7 +43,7 @@ function startFileServer() {
       fs.createReadStream(filePath).pipe(res)
     })
 
-    server.listen(FILE_SERVER_PORT, '127.0.0.1', () => resolve(server.address().port))
+    server.listen(FILE_SERVER_PORT, 'localhost', () => resolve(server.address().port))
   })
 }
 
@@ -65,7 +65,7 @@ async function createWindow(port) {
     },
   })
 
-  const url = IS_DEV ? 'http://localhost:3000' : `http://127.0.0.1:${port}`
+  const url = IS_DEV ? 'http://localhost:3000' : `http://localhost:${port}`
   win.loadURL(url)
 
   // YouTube embed iframe에 CSS 주입 → OSD 요소 완전 제거
