@@ -308,6 +308,17 @@ export default function Home() {
         </div>
       )}
 
+      {/* 닫기 버튼 */}
+      <div className={`absolute top-2 left-2 z-50 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <button
+          onClick={() => window.close()}
+          className="app-no-drag text-zinc-400 hover:text-white transition-colors"
+          aria-label="닫기"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
       {/* 현재 재생 시간 */}
       {loaded && (
         <div className="absolute top-2 right-2 z-50 text-zinc-300 text-xs font-mono tabular-nums pointer-events-none">

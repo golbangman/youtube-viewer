@@ -57,7 +57,7 @@ async function createWindow(port) {
     y: height - WIN_HEIGHT - 16,
     alwaysOnTop: true,
     resizable: false,
-    title: 'YouTube Viewer',
+    frame: false,
     webPreferences: {
       webSecurity: false,
       nodeIntegration: false,
