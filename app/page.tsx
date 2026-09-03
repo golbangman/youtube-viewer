@@ -80,6 +80,10 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (currentVideoId) setUrl(`https://youtu.be/${currentVideoId}`)
+  }, [currentVideoId])
+
+  useEffect(() => {
     if (playerError === null) return
     const id = setTimeout(() => setPlayerError(null), 3000)
     return () => clearTimeout(id)
@@ -162,6 +166,10 @@ export default function Home() {
           setBuffering(true)
           if (seekTo > 0) e.target.seekTo(seekTo, true)
           setDuration(Math.floor(e.target.getDuration()))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(e.target as any).loadModule('captions')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(e.target as any).setOption('captions', 'track', { languageCode: 'ko' })
         },
         onStateChange: (e: YT.OnStateChangeEvent) => {
           const state = e.data
@@ -177,6 +185,10 @@ export default function Home() {
             if (vid && data?.title) addToHistory(vid, data.title)
             const d = playerRef.current?.getDuration()
             if (d) setDuration(Math.floor(d))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(playerRef.current as any)?.loadModule('captions')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(playerRef.current as any)?.setOption('captions', 'track', { languageCode: 'ko' })
           }
 
           if (state === window.YT.PlayerState.PAUSED) savePosition()
@@ -249,32 +261,11 @@ export default function Home() {
 
   return (
     <div
-      className="app-drag relative h-screen overflow-hidden bg-zinc-950 text-zinc-100 select-none"
+      className="app-drag relative flex flex-col h-screen overflow-hidden bg-zinc-950 text-zinc-100 select-none"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* 영상 */}
-      <div id="yt-player" className="app-no-drag absolute inset-0" />
-      <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
-
-      {/* 플레이스홀더 / 에러 */}
-      {!loaded && playerError === null && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
-        </div>
-      )}
-      {playerError !== null && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <span className="text-red-500 text-xs">
-            {playerError === 100 && '영상을 찾을 수 없습니다 (비공개 또는 삭제됨)'}
-            {(playerError === 101 || playerError === 150) && '이 영상은 외부 재생이 차단되어 있습니다'}
-            {playerError === 5 && '재생 오류 (HTML5 플레이어)'}
-            {![100, 101, 150, 5].includes(playerError) && `재생 불가 (오류 코드: ${playerError})`}
-          </span>
-        </div>
-      )}
-
-      {/* 시청 기록 패널 */}
+      {/* 시청 기록 패널 - 전체 화면 커버 */}
       {showHistory && (
         <div className="absolute inset-0 z-30 bg-zinc-900 flex flex-col">
           <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
@@ -308,43 +299,63 @@ export default function Home() {
         </div>
       )}
 
-      {/* 닫기 버튼 */}
-      <div className={`absolute top-2 left-2 z-50 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <button
-          onClick={() => window.close()}
-          className="app-no-drag text-zinc-400 hover:text-white transition-colors"
-          aria-label="닫기"
-        >
-          <X size={14} />
-        </button>
+      {/* 영상 영역 */}
+      <div className="app-no-drag relative flex-1 min-h-0 bg-black">
+        <div id="yt-player" className="absolute inset-0" />
+        <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
+
+        {/* 플레이스홀더 / 에러 */}
+        {!loaded && playerError === null && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <span className="text-zinc-600 text-xs">URL을 입력하고 Enter</span>
+          </div>
+        )}
+        {playerError !== null && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <span className="text-red-500 text-xs">
+              {playerError === 100 && '영상을 찾을 수 없습니다 (비공개 또는 삭제됨)'}
+              {(playerError === 101 || playerError === 150) && '이 영상은 외부 재생이 차단되어 있습니다'}
+              {playerError === 5 && '재생 오류 (HTML5 플레이어)'}
+              {![100, 101, 150, 5].includes(playerError) && `재생 불가 (오류 코드: ${playerError})`}
+            </span>
+          </div>
+        )}
+
+        {/* 닫기 버튼 */}
+        <div className={`absolute top-2 left-2 z-50 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button
+            onClick={() => window.close()}
+            className="app-no-drag text-zinc-400 hover:text-white transition-colors"
+            aria-label="닫기"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* 현재 재생 시간 */}
+        {loaded && (
+          <div className="absolute top-2 right-2 z-50 text-zinc-300 text-xs font-mono tabular-nums pointer-events-none">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </div>
+        )}
       </div>
 
-      {/* 현재 재생 시간 */}
-      {loaded && (
-        <div className="absolute top-2 right-2 z-50 text-zinc-300 text-xs font-mono tabular-nums pointer-events-none">
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </div>
-      )}
-
-      {/* URL + 컨트롤 오버레이 */}
-      <div
-        className={`absolute bottom-0 inset-x-0 z-40 transition-opacity duration-200 ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-8 px-2 pb-2 space-y-1.5">
-          <input
-            type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
-            onFocus={(e) => e.target.select()}
-            placeholder="YouTube URL 입력 후 Enter"
-            className="app-no-drag w-full bg-zinc-800/80 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-          />
-          <div className="flex items-center">
-            <div className="flex-1" />
-            <div className="flex items-center gap-4">
+      {/* 컨트롤 영역 */}
+      <div className={`shrink-0 bg-zinc-900 px-2 py-2 space-y-1.5 transition-opacity duration-200 ${
+        showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}>
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
+          onFocus={(e) => e.target.select()}
+          placeholder="YouTube URL 입력 후 Enter"
+          className="app-no-drag w-full bg-zinc-800 text-zinc-100 text-xs px-3 py-1.5 rounded placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+        />
+        <div className="flex items-center">
+          <div className="flex-1" />
+          <div className="flex items-center gap-4">
             <button
               onClick={handlePrev}
               disabled={!canPrev}
@@ -375,16 +386,15 @@ export default function Home() {
             >
               <SkipForward size={16} />
             </button>
-            </div>
-            <div className="flex-1 flex justify-end">
-              <button
-                onClick={() => setShowHistory(h => !h)}
-                className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
-                aria-label="시청 기록"
-              >
-                <Clock size={14} />
-              </button>
-            </div>
+          </div>
+          <div className="flex-1 flex justify-end">
+            <button
+              onClick={() => setShowHistory(h => !h)}
+              className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
+              aria-label="시청 기록"
+            >
+              <Clock size={14} />
+            </button>
           </div>
         </div>
       </div>

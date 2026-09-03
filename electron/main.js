@@ -6,7 +6,7 @@ const fs = require('fs')
 const path = require('path')
 
 const WIN_WIDTH = 400
-const WIN_HEIGHT = 330
+const WIN_HEIGHT = 400
 const IS_DEV = process.env.NEXT_DEV === '1'
 const OUT_DIR = path.join(__dirname, '..', 'out')
 const FILE_SERVER_PORT = 47473
