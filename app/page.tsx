@@ -1,12 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Clock, Pause, Play, SkipBack, SkipForward, Square, X } from 'lucide-react'
+import { Bookmark, Clock, Pause, Play, SkipBack, SkipForward, Square, X } from 'lucide-react'
+
+type BookmarkItem = { videoId: string; title: string; folder: string }
 
 declare global {
   interface Window {
     YT: typeof YT
     onYouTubeIframeAPIReady: () => void
+    electronAPI?: {
+      getBookmarks: () => Promise<{ ok: boolean; bookmarks?: BookmarkItem[]; error?: string }>
+    }
   }
 }
 
@@ -45,6 +50,9 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [captionLang, setCaptionLang] = useState<'ko' | 'en' | null>('ko')
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
+  const [showBookmarks, setShowBookmarks] = useState(false)
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -270,6 +278,28 @@ export default function Home() {
     }
   }
 
+  async function openBookmarks() {
+    if (showBookmarks) { setShowBookmarks(false); return }
+    setBookmarkError(null)
+    if (!window.electronAPI) { setBookmarkError('Electron API 없음'); setShowBookmarks(true); return }
+    const result = await window.electronAPI.getBookmarks()
+    if (result.ok && result.bookmarks) {
+      setBookmarks(result.bookmarks)
+      setBookmarkError(null)
+    } else {
+      setBookmarks([])
+      setBookmarkError(result.error ?? '북마크를 불러올 수 없습니다')
+    }
+    setShowBookmarks(true)
+  }
+
+  function playBookmark(item: BookmarkItem) {
+    setShowBookmarks(false)
+    resumePositionRef.current = 0
+    if (apiReadyRef.current) initPlayer(item.videoId)
+    else pendingVideoIdRef.current = item.videoId
+  }
+
   function handlePrev() {
     const idx = history.findIndex(h => h.videoId === currentVideoId)
     if (idx >= 0 && idx < history.length - 1) loadFromHistory(history[idx + 1])
@@ -318,6 +348,44 @@ export default function Home() {
                 >
                   <span className="text-zinc-600 text-xs shrink-0 w-4 mt-0.5">{i + 1}.</span>
                   <span className="text-zinc-300 text-xs line-clamp-2 leading-tight">{item.title}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 북마크 패널 */}
+      {showBookmarks && (
+        <div className="absolute inset-0 z-30 bg-zinc-900 flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
+            <span className="text-xs font-medium text-zinc-400">크롬 북마크 (YouTube)</span>
+            <button
+              onClick={() => setShowBookmarks(false)}
+              className="app-no-drag text-zinc-500 hover:text-zinc-200 transition-colors"
+              aria-label="닫기"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto app-no-drag">
+            {bookmarkError ? (
+              <div className="flex items-center justify-center h-full px-4">
+                <span className="text-red-500 text-xs text-center">{bookmarkError}</span>
+              </div>
+            ) : bookmarks.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <span className="text-zinc-600 text-xs">YouTube 북마크 없음</span>
+              </div>
+            ) : (
+              bookmarks.map((item, i) => (
+                <button
+                  key={`${item.videoId}-${i}`}
+                  onClick={() => playBookmark(item)}
+                  className="app-no-drag w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors flex flex-col gap-0.5"
+                >
+                  <span className="text-zinc-300 text-xs line-clamp-1 leading-tight">{item.title || item.videoId}</span>
+                  {item.folder && <span className="text-zinc-600 text-[10px] line-clamp-1">{item.folder}</span>}
                 </button>
               ))
             )}
@@ -445,6 +513,13 @@ export default function Home() {
               aria-label="시청 기록"
             >
               <Clock size={14} />
+            </button>
+            <button
+              onClick={openBookmarks}
+              className={`app-no-drag transition-colors shrink-0 ${showBookmarks ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
+              aria-label="크롬 북마크"
+            >
+              <Bookmark size={14} />
             </button>
           </div>
         </div>

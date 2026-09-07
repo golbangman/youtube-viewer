@@ -1,9 +1,10 @@
-const { app, BrowserWindow, screen } = require('electron')
+const { app, BrowserWindow, screen, ipcMain } = require('electron')
 
 app.commandLine.appendSwitch('ignore-certificate-errors')
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 
 const WIN_WIDTH = 400
 const WIN_HEIGHT = 400
@@ -62,6 +63,7 @@ async function createWindow(port) {
       webSecurity: false,
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   })
 
@@ -88,3 +90,48 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => app.quit())
+
+function getChromiumBookmarksPath() {
+  const home = os.homedir()
+  if (process.platform === 'darwin') {
+    return path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'Default', 'Bookmarks')
+  } else if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'User Data', 'Default', 'Bookmarks')
+  } else {
+    const chrome = path.join(home, '.config', 'google-chrome', 'Default', 'Bookmarks')
+    const chromium = path.join(home, '.config', 'chromium', 'Default', 'Bookmarks')
+    return fs.existsSync(chrome) ? chrome : chromium
+  }
+}
+
+function extractYouTubeVideoId(url) {
+  const patterns = [/[?&]v=([a-zA-Z0-9_-]{11})/, /youtu\.be\/([a-zA-Z0-9_-]{11})/, /embed\/([a-zA-Z0-9_-]{11})/]
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1] }
+  return null
+}
+
+function extractYouTubeBookmarks(node, folderPath) {
+  const results = []
+  if (node.type === 'url' && node.url) {
+    const videoId = extractYouTubeVideoId(node.url)
+    if (videoId) results.push({ videoId, title: node.name || '', folder: folderPath })
+  } else if (node.type === 'folder' && Array.isArray(node.children)) {
+    const next = folderPath ? `${folderPath} / ${node.name}` : node.name
+    for (const child of node.children) results.push(...extractYouTubeBookmarks(child, next))
+  }
+  return results
+}
+
+ipcMain.handle('get-bookmarks', async () => {
+  try {
+    const bookmarksPath = getChromiumBookmarksPath()
+    const data = JSON.parse(fs.readFileSync(bookmarksPath, 'utf-8'))
+    const results = []
+    for (const key of ['bookmark_bar', 'other', 'synced']) {
+      if (data.roots?.[key]) results.push(...extractYouTubeBookmarks(data.roots[key], ''))
+    }
+    return { ok: true, bookmarks: results }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+})
