@@ -31,6 +31,7 @@ export default function Home() {
   const pendingVideoIdRef = useRef<string | null>(null)
   const currentVideoIdRef = useRef<string | null>(null)
   const resumePositionRef = useRef<number>(0)
+  const captionLangRef = useRef<'ko' | 'en' | null>('ko')
 
   const [url, setUrl] = useState('')
   const [currentVideoId, setCurrentVideoId] = useState<string | null>(null)
@@ -43,6 +44,7 @@ export default function Home() {
   const [isHovering, setIsHovering] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [captionLang, setCaptionLang] = useState<'ko' | 'en' | null>('ko')
 
   useEffect(() => {
     try {
@@ -112,6 +114,23 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, '0')}`
   }
 
+  function handleCaptionSelect(lang: 'ko' | 'en') {
+    const next: 'ko' | 'en' | null = captionLang === lang ? null : lang
+    captionLangRef.current = next
+    setCaptionLang(next)
+
+    const videoId = currentVideoIdRef.current
+    if (!videoId || !playerRef.current) return
+
+    const pos = Math.floor(playerRef.current.getCurrentTime() ?? 0)
+    resumePositionRef.current = pos
+    setBuffering(true)
+    setIsPlaying(false)
+    try { playerRef.current.destroy() } catch {}
+    playerRef.current = null
+    setTimeout(() => initPlayer(videoId), 50)
+  }
+
   function savePosition() {
     const vid = currentVideoIdRef.current
     const pos = playerRef.current?.getCurrentTime()
@@ -158,7 +177,12 @@ export default function Home() {
       videoId,
       width: '100%',
       height: '100%',
-      playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, origin: window.location.origin },
+      playerVars: {
+        autoplay: 1, controls: 0, rel: 0, modestbranding: 1, origin: window.location.origin,
+        cc_load_policy: captionLangRef.current ? 1 : 0,
+        cc_lang_pref: captionLangRef.current ?? 'ko',
+        hl: captionLangRef.current ?? 'en',
+      },
       events: {
         onReady: (e: YT.PlayerEvent) => {
           e.target.setVolume(70)
@@ -166,10 +190,6 @@ export default function Home() {
           setBuffering(true)
           if (seekTo > 0) e.target.seekTo(seekTo, true)
           setDuration(Math.floor(e.target.getDuration()))
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(e.target as any).loadModule('captions')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(e.target as any).setOption('captions', 'track', { languageCode: 'ko' })
         },
         onStateChange: (e: YT.OnStateChangeEvent) => {
           const state = e.data
@@ -185,10 +205,6 @@ export default function Home() {
             if (vid && data?.title) addToHistory(vid, data.title)
             const d = playerRef.current?.getDuration()
             if (d) setDuration(Math.floor(d))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ;(playerRef.current as any)?.loadModule('captions')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ;(playerRef.current as any)?.setOption('captions', 'track', { languageCode: 'ko' })
           }
 
           if (state === window.YT.PlayerState.PAUSED) savePosition()
@@ -387,7 +403,19 @@ export default function Home() {
               <SkipForward size={16} />
             </button>
           </div>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {(['ko', 'en'] as const).map(lang => (
+                <button
+                  key={lang}
+                  onClick={() => handleCaptionSelect(lang)}
+                  className={`app-no-drag transition-colors text-[10px] font-bold leading-none uppercase ${captionLang === lang ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  aria-label={`${lang} 자막`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setShowHistory(h => !h)}
               className={`app-no-drag transition-colors shrink-0 ${showHistory ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
