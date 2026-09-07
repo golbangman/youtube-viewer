@@ -347,6 +347,19 @@ export default function Home() {
           </div>
         )}
 
+        {/* 영상 중앙 PLAY / PAUSE */}
+        {loaded && isHovering && playerError === null && (
+          <button
+            onClick={handlePlayPause}
+            className="app-no-drag absolute inset-0 z-20 flex items-center justify-center"
+            aria-label={isPlaying ? '일시정지' : '재생'}
+          >
+            <span className="text-white/70 text-xs font-medium tracking-[0.2em]">
+              {isPlaying ? 'PAUSE' : 'PLAY'}
+            </span>
+          </button>
+        )}
+
         {/* 닫기 버튼 */}
         <div className={`absolute top-2 left-2 z-50 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <button
