@@ -110,6 +110,19 @@ function extractYouTubeVideoId(url) {
   return null
 }
 
+function findFolder(node, name) {
+  if (node.type === 'folder') {
+    if (node.name?.toLowerCase() === name.toLowerCase()) return node
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        const found = findFolder(child, name)
+        if (found) return found
+      }
+    }
+  }
+  return null
+}
+
 function extractYouTubeBookmarks(node, folderPath) {
   const results = []
   if (node.type === 'url' && node.url) {
@@ -126,11 +139,13 @@ ipcMain.handle('get-bookmarks', async () => {
   try {
     const bookmarksPath = getChromiumBookmarksPath()
     const data = JSON.parse(fs.readFileSync(bookmarksPath, 'utf-8'))
-    const results = []
     for (const key of ['bookmark_bar', 'other', 'synced']) {
-      if (data.roots?.[key]) results.push(...extractYouTubeBookmarks(data.roots[key], ''))
+      const root = data.roots?.[key]
+      if (!root) continue
+      const folder = findFolder(root, 'utube')
+      if (folder) return { ok: true, bookmarks: extractYouTubeBookmarks(folder, '') }
     }
-    return { ok: true, bookmarks: results }
+    return { ok: false, error: '"utube" 폴더를 찾을 수 없습니다' }
   } catch (e) {
     return { ok: false, error: e.message }
   }
