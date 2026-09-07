@@ -190,6 +190,16 @@ export default function Home() {
           setBuffering(true)
           if (seekTo > 0) e.target.seekTo(seekTo, true)
           setDuration(Math.floor(e.target.getDuration()))
+          // setOption 백업: playerVar가 작동하지 않는 경우를 대비
+          const lang = captionLangRef.current
+          if (lang) {
+            const p = e.target as any
+            setTimeout(() => {
+              const tracklist: any[] = p?.getOption('captions', 'tracklist') ?? []
+              const track = tracklist.find((t: any) => t.languageCode?.startsWith(lang))
+              if (track) p?.setOption('captions', 'track', track)
+            }, 1500)
+          }
         },
         onStateChange: (e: YT.OnStateChangeEvent) => {
           const state = e.data
@@ -318,7 +328,7 @@ export default function Home() {
       {/* 영상 영역 */}
       <div className="app-no-drag relative flex-1 min-h-0 bg-black">
         <div id="yt-player" className="absolute inset-0" />
-        <div className={`absolute inset-0 z-10 ${buffering ? 'bg-black' : ''}`} />
+        <div className={`absolute inset-0 z-10 ${buffering || (loaded && !isPlaying) ? 'bg-black' : ''}`} />
 
         {/* 플레이스홀더 / 에러 */}
         {!loaded && playerError === null && (
